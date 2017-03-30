@@ -119,8 +119,11 @@ while(remaining_points >= BUFFER_SIZE+KFIT){
     remaining_points_buffer <- remaining_points_buffer - points_until_store
     store.snapshot(MICROCLUSTERS,TIME)
   }
-  
-
+  plot_name <-  paste0("buffer" ,it,".jpg")
+  jpeg(plot_name)
+  plot <-ggplot(TRAINING_DATASET[1:(it*BUFFER_SIZE),], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "blue", high = "red")+geom_point(x, aes(x=V1,y=V2),shape=6 ,color=9)
+  print(plot)
+  dev.off()
   #Pega os BUFFER_SIZE+displacement pontos do fluxo de treino para deixa-los no mesmo tempo
   displacement <- KFIT
   remaining_points <- remaining_points - (BUFFER_SIZE + KFIT)
