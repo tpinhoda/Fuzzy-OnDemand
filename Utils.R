@@ -23,7 +23,7 @@ create.microcluster <- function(center,class){
 get.centers <- function(MICROCLUSTERS){
   #Retorna o centro de todos os micro-grupos
   return(t(sapply(MICROCLUSTERS, function(microcluster){
-      microcluster$CF1x/microcluster$n
+      microcluster$CF1x/microcluster$M
   })))
 }
 
@@ -104,7 +104,7 @@ nearest.microcluster <- function(MICROCLUSTERS,point,class){
 
 mean.timestamp <- function(microcluster){
   points_number <- microcluster$n
-  std_timestamp <- sqrt((microcluster$CF2t/microcluster$n)-(microcluster$CF1t/points_number)^2)
+  std_timestamp <- sqrt((microcluster$CF2t/points_number)-(microcluster$CF1t/points_number)^2)
   mean_timestamp <- microcluster$CF1t/points_number
   
   if(microcluster$n < 2*M*points_number){

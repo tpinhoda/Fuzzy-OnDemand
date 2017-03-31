@@ -1,6 +1,7 @@
 library(stream)
 library(class)
 library(e1071)
+library(ggplot2)
 #------------------------------------------------------Variáveis do Dataset--------------------------------------------------------------------------------------
 #Separa o Conjunto de teste e o de treino 1 por 1
 TRAINING_DATASET = read.csv("../../DS_Datasets/Synthetic/Non-Stationary/Bench2_10k/Benchmark2_10000.csv")[c(TRUE, FALSE), ]
@@ -12,7 +13,7 @@ NATTRIBUTES <- ncol(TRAINING_DATASET) -1      #Calcula quantidade de atributos p
 
 #----------------------------------------------Variáveis de inicializacao do algoritmo-----------------------------------------------------------------------------------------
 INITNUMBER <- 500            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
-MICROCLUSTER_RATIO <- 3      #Quantidade de micro-grupos máxima por classe na criacao inicial
+MICROCLUSTER_RATIO <- 5      #Quantidade de micro-grupos máxima por classe na criacao inicial
 FRAME_MAX_CAPACITY <- 8      #Quantidade de snapshost por frame
 BUFFER_SIZE <- 600          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
 KFIT <- 200                  #Quantidade de pontos que serão testadas
@@ -24,7 +25,7 @@ PHI <- 25*1000                #Limiar para decidir se um mcrogrupo é deletado o
 P <- 1                       #Quantidade de horizontes para a classificacão
 STORE_MC <- 1                #Intervalo de tempo para armazenar um snapshot
 FUZZY_M <- 2                  #Parametro de fuzzyficação
-FUZZY_THETA <- 0.5            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+FUZZY_THETA <- 0.9            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
 #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
 FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
 FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -80,6 +81,7 @@ MICROCLUSTERS_SIZE = length(MICROCLUSTERS)
 remaining_points = TRAINING_SET_SIZE - INITNUMBER #pontos restantes no fluxo de treino a serem processados
 displacement = INITNUMBER + KFIT
 it <- 0
+it_point <- INITNUMBER
 while(remaining_points >= BUFFER_SIZE+KFIT){
   it <- it + 1
   cat("Buffer: ", it ,"\n")
@@ -113,17 +115,21 @@ while(remaining_points >= BUFFER_SIZE+KFIT){
       }
 
     }
-    
+  
+    it_point <- it_point + POINTS_PER_UNIT_TIME
+    fmic_centers <- as.data.frame(get.centers(MICROCLUSTERS))
+    plot_name <-  paste0("buffer" ,it_point,".jpg")
+    jpeg(plot_name)
+    plot <-ggplot(TRAINING_DATASET[INITNUMBER:it_point,], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "yellow", high = "green")+geom_point(data = fmic_centers, aes(x=V1,y=V2),shape=11 ,color="red")
+    print(plot)
+    dev.off()
     #salvar snapshot
     TIME <- TIME + (STORE_MC*1000)
     remaining_points_buffer <- remaining_points_buffer - points_until_store
     store.snapshot(MICROCLUSTERS,TIME)
   }
-  plot_name <-  paste0("buffer" ,it,".jpg")
-  jpeg(plot_name)
-  plot <-ggplot(TRAINING_DATASET[1:(it*BUFFER_SIZE),], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "blue", high = "red")+geom_point(x, aes(x=V1,y=V2),shape=6 ,color=9)
-  print(plot)
-  dev.off()
+  
+  
   #Pega os BUFFER_SIZE+displacement pontos do fluxo de treino para deixa-los no mesmo tempo
   displacement <- KFIT
   remaining_points <- remaining_points - (BUFFER_SIZE + KFIT)
