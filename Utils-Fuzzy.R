@@ -92,7 +92,7 @@ nearest.microcluster <- function(MICROCLUSTERS,point,class){
   point_distances <- get.distances(MICROCLUSTERS,point)
   point_memberships <- calculate.membership(point_distances,MICROCLUSTERS_SIZE)
 
-  thresholded_memberships <- point_memberships > 0.1
+  thresholded_memberships <- point_memberships > 0.4
 
   index_mics <- 1:MICROCLUSTERS_SIZE
   nearest_index <- index_mics[thresholded_memberships]
@@ -107,9 +107,7 @@ mean.timestamp <- function(microcluster){
   std_timestamp <- sqrt((microcluster$CF2t/points_number)-(microcluster$CF1t/points_number)^2)
   mean_timestamp <- microcluster$CF1t/points_number
   
-  if(microcluster$n < 2*M*points_number){
-    return(mean_timestamp)
-  }else
+  
     mean_timestamp <- qnorm(((M*points_number)/(2*points_number)),mean_timestamp,std_timestamp) 
   return(mean_timestamp)
     
@@ -142,7 +140,7 @@ delete.microcluster <- function(microcluster_index,point,class){
   MICROCLUSTERS[[microcluster_index]]$class_id <<- class
   MC_ID <<- MC_ID + 1
   MICROCLUSTERS[[microcluster_index]]$id <<- MC_ID
-  M <<- 1
+  MICROCLUSTERS[[microcluster_index]]$M <<- 1
   
   #Calculo do limite de acão maximo de cada micro-grupo inicial
   
@@ -168,19 +166,22 @@ sum.microclusters <- function(mc1,mc2){
 merge.microclusters <- function(min_relevant,point,class){
   min_relevant_mic <- MICROCLUSTERS[[min_relevant['index']]]
   min_relevant_class <- min_relevant_mic$class_id
-  min_relevant_center <- min_relevant_mic$CF1x/min_relevant_mic$n
+  min_relevant_center <- min_relevant_mic$CF1x/min_relevant_mic$M
   class_microclusters <- find.microclusters(MICROCLUSTERS,min_relevant_class)
   if(is.empty(class_microclusters))
     delete.microcluster(min_relevant,point,class)
   else{
     point_distances <- get.distances(MICROCLUSTERS,min_relevant_center)
-    point_memberships <- calculate.membership(point_distances,MICROCLUSTERS_SIZE-1)
+    point_class_distance <- point_distances[class_microclusters]
+    point_memberships <- calculate.membership(point_distances[class_microclusters],length(point_class_distance))
     thresholded_memberships <- point_memberships > 0.1
-    index_mics <- 1:MICROCLUSTERS_SIZE
-    nearest_index <- index_mics[thresholded_memberships]
-    
-    for(index in nearest_index )
+    nearest_index <- class_microclusters[thresholded_memberships]
+    #cat("min_class: ",min_relevant_class,"\n")
+    for(index in nearest_index ){
+     # cat("nearest_class: ",MICROCLUSTERS[[index]]$class_id,"\n")
       sum.microclusters(index,min_relevant['index'])
+    }
+    delete.microcluster(min_relevant["index"],point,class)
   }
   
 }

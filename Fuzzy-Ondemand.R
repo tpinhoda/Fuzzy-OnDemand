@@ -25,7 +25,7 @@ PHI <- 25*1000                #Limiar para decidir se um mcrogrupo é deletado o
 P <- 1                       #Quantidade de horizontes para a classificacão
 STORE_MC <- 1                #Intervalo de tempo para armazenar um snapshot
 FUZZY_M <- 2                  #Parametro de fuzzyficação
-FUZZY_THETA <- 0.9            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+FUZZY_THETA <- 0.6            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
 #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
 FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
 FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -35,7 +35,7 @@ TIME <- 0                                     #Contador de tempo em unit * 1000
 HORIZONS <- 2^(1:FRAME_MAX_CAPACITY)*1000              #Horizontes para verificar os kfit pontos
 
 #------------------------------------------------------Inicializa funcões--------------------------------------------------------------------------------------------
-source("Utils.R")
+source("~/Data\ Stream/Classification/Fuzzy-OnDemand/Utils-Fuzzy.R")
 
 #==============================================================INÍCIO===========================================================================================
 #Fase 1 - Inicializacão - OFFLINE
@@ -53,7 +53,7 @@ splitted_points <- split.class(inicialization_points)                           
 TIME <- (INITNUMBER/POINTS_PER_UNIT_TIME)*1000
 
 #Utilizar o kmeans em cada grupo de classe e retornar k microgrupos para cada classe
-set.seed(1)
+set.seed(2)
 splitted_microclusters <- lapply(splitted_points, function(class_set){
                                 c(cmeans(class_set[, 1:NATTRIBUTES],centers =  MICROCLUSTER_RATIO, iter.max = 100, method = "cmeans", dist = "euclidean", m = 2),class=as.character(class_set[1,NATTRIBUTES+1]))
                            }) 
@@ -102,32 +102,80 @@ while(remaining_points >= BUFFER_SIZE+KFIT){
       nearest <- nearest.microcluster(MICROCLUSTERS,stream_point,class_stream_point)
       #Calcula o Micro-grupo com menor relevancia caso precise de merge ou delete
       min_relevant <- find.min.relevant(MICROCLUSTERS)
- 
+      
       if(is.empty(nearest))
         check.relevance(min_relevant,stream_point,class_stream_point)
       else{
         max_membership <- max(nearest[,2])
-        if(max(nearest[,2]) >= FUZZY_THETA ) 
+        #print(max_membership)
+        if(max_membership >= FUZZY_THETA ){
+         
           for(nearest_mic in get.rows(nearest))
             add.point(nearest_mic,stream_point)
-        else
+        }else
           check.relevance(min_relevant,stream_point,class_stream_point)
       }
 
     }
   
+    
     it_point <- it_point + POINTS_PER_UNIT_TIME
     fmic_centers <- as.data.frame(get.centers(MICROCLUSTERS))
-    plot_name <-  paste0("buffer" ,it_point,".jpg")
+    fmic_classes <- as.data.frame(t(get.class(MICROCLUSTERS)))
+    colnames(fmic_classes) <- "class_center"
+    fmic <- cbind(fmic_centers,fmic_classes)
+    plot_name <-  paste0("~/Data\ Stream/Classification/Fuzzy-OnDemand/Graphx/buffer" ,it_point,".jpg")
     jpeg(plot_name)
-    plot <-ggplot(TRAINING_DATASET[INITNUMBER:it_point,], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "yellow", high = "green")+geom_point(data = fmic_centers, aes(x=V1,y=V2),shape=11 ,color="red")
+    #cat("INIT: ",INITNUMBER,"it: ",it_point,"\n")
+    plot <-ggplot(TRAINING_DATASET[INITNUMBER:it_point,], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "yellow", high = "green")+geom_point(data = fmic, aes(x=V1,y=V2),shape=fmic$class_center,color="red")
     print(plot)
     dev.off()
+    INITNUMBER <- INITNUMBER + POINTS_PER_UNIT_TIME
     #salvar snapshot
     TIME <- TIME + (STORE_MC*1000)
     remaining_points_buffer <- remaining_points_buffer - points_until_store
     store.snapshot(MICROCLUSTERS,TIME)
   }
+  INITNUMBER <- INITNUMBER + KFIT
+  it_point <- INITNUMBER
+  #Fitting dos kfit pontos do fluxo de treino
+  kfit_points <- get_points(TRAINING_STREAM, n=KFIT, class = TRUE)
+  knn_testset <- kfit_points[,-(NATTRIBUTES+1)]
+  knn_labelstest <- kfit_points[,(NATTRIBUTES+1)]
+  HORIZONS_FITTING <- c()
+  for(h in HORIZONS){
+    horizon_microluster <- relating.microcluster(TIME,h)
+    knn_trainingset <-as.data.frame(get.centers(horizon_microluster))
+    classes <- as.factor(t(get.class(horizon_microluster)))
+    complete_cases <- complete.cases(knn_trainingset)
+    knn_trainingset <- knn_trainingset[complete_cases, ]
+    classes <- classes[complete_cases]
+    y_pred <- knn(knn_trainingset,knn_testset,classes,k=1)
+    accuracy_kfit <- calculate.accuracy(y_pred,knn_labelstest)
+    HORIZONS_FITTING <- c(HORIZONS_FITTING,list(list(training_set = knn_trainingset, accuracy = accuracy_kfit, labels = classes)))
+    
+  }
+  
+  #Fase de teste
+  best_horizons <- get.besthorizons(HORIZONS_FITTING,P)
+  test_points <- get_points(TEST_STREAM, n=BUFFER_SIZE+displacement,class = TRUE)
+  test_set <- test_points[,-(NATTRIBUTES+1)]
+  labels_test <- test_points[,(NATTRIBUTES+1)]
+  horizons_pred <- c()
+  
+  #calcula o knn para cada p horizon
+  for(horizon in best_horizons){
+    training_set <- horizon$training_set
+    training_labels <- horizon$labels
+    test_pred <- knn(training_set,test_set,training_labels,k=1)
+    horizons_pred <- cbind(horizons_pred,as.numeric(as.character(test_pred)))
+
+  }
+  
+  #pegar a classe que mais aparece nos p horizontes resultados para cada exemplo de test
+   prediction <- apply(horizons_pred,1,function(row){as.numeric(names(which.max(table(row))))})
+   accuracy_test <- calculate.accuracy(prediction,labels_test)
+   cat("Accuracy: ", accuracy_test, "\n")
   
   
   #Pega os BUFFER_SIZE+displacement pontos do fluxo de treino para deixa-los no mesmo tempo
