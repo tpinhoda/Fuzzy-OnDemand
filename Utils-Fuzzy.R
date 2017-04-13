@@ -277,6 +277,7 @@ eucDist <- function(x1, x2){ return(sqrt(sum((x1 - x2) ^ 2))) }
 calculate.accuracy <- function(y_pred,label){
   index_label <- 1
   right <- 0
+
   for(y in y_pred){
     if(y == label[index_label])
       right <- right + 1
