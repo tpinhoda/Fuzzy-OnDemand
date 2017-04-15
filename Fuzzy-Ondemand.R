@@ -22,6 +22,11 @@
   TIME <- 0                                     #Contador de tempo em unit * 1000
   HORIZONS <- 2^(1:FRAME_MAX_CAPACITY)*1000              #Horizontes para verificar os kfit pontos
   HISTORY <- c()  
+  SUM_HISTORY <- c()
+  SUM_PREDICTION <- c()
+  SUM_LABELS <- c()
+  TRAINING_HISTORY <- c()
+
   #------------------------------------------------------Inicializa funcões--------------------------------------------------------------------------------------------
   source("Utils-Fuzzy.R")
   
@@ -73,7 +78,6 @@
   remaining_points = TRAINING_SET_SIZE - INITNUMBER #pontos restantes no fluxo de treino a serem processados
   displacement = INITNUMBER + KFIT
   it <- 0
-  it_point <- INITNUMBER
   while(remaining_points >= BUFFER_SIZE+KFIT){
       it <- it + 1
       cat("Buffer: ", it ,"\n")
@@ -110,26 +114,15 @@
     
         }
       
+        #plot mic estado
         
-        it_point <- it_point + POINTS_PER_UNIT_TIME
-        fmic_centers <- as.data.frame(get.centers(MICROCLUSTERS))
-        fmic_classes <- as.data.frame(t(get.class(MICROCLUSTERS)))
-        colnames(fmic_classes) <- "class_center"
-        fmic <- cbind(fmic_centers,fmic_classes)
-       # plot_name <-  paste0("~/Data\ Stream/Classification/Fuzzy-OnDemand/Graphx/buffer" ,it_point,".jpg")
-       # jpeg(plot_name)
-        #cat("INIT: ",INITNUMBER,"it: ",it_point,"\n")
-       # plot <-ggplot(TRAINING_DATASET[INITNUMBER:it_point,], aes(x=X1,y=X2))+geom_point(aes(color = class))+scale_color_continuous(name="",breaks = c(1, 2, 3),labels = c("1", "2", "3"),low = "yellow", high = "green")+geom_point(data = fmic, aes(x=V1,y=V2),shape=fmic$class_center,color="red")
-       # print(plot)
-       # dev.off()
-        INITNUMBER <- INITNUMBER + POINTS_PER_UNIT_TIME
         #salvar snapshot
         TIME <- TIME + (STORE_MC*1000)
         remaining_points_buffer <- remaining_points_buffer - points_until_store
         store.snapshot(MICROCLUSTERS,TIME)
       }
-      INITNUMBER <- INITNUMBER + KFIT
-      it_point <- INITNUMBER
+      
+      
       #Fitting dos kfit pontos do fluxo de treino
       kfit_points <- get_points(TRAINING_STREAM, n=KFIT, class = TRUE)
       knn_testset <- kfit_points[,-(NATTRIBUTES+1)]
@@ -166,16 +159,23 @@
         training_labels <- horizon$labels
         test_pred <- knn(training_set,test_set,training_labels,k=1)
         horizons_pred <- cbind(horizons_pred,test_pred)
-    
+        TRAINING_HISTORY <- cbind(TRAINING_HISTORY, list(horizon))
       }
       
       #pegar a classe que mais aparece nos p horizontes resultados para cada exemplo de test
        prediction <- apply(horizons_pred,1,function(row){(names(which.max(table(row))))})
        
        labels_test <- factor(labels_test,levels = class_levels)
+       SUM_LABELS <- c(SUM_LABELS,labels_test)
+       SUM_LABELS <- factor(SUM_LABELS,levels = class_levels)
+       
        prediction <- factor(prediction,levels = class_levels )
+       SUM_PREDICTION <- c(SUM_PREDICTION,prediction)
+       SUM_PREDICTION <- factor(SUM_PREDICTION,levels = class_levels)
        
        confusion_matrix <- confusionMatrix(prediction,labels_test)
+       sum_confusion_matrix <- confusionMatrix(SUM_PREDICTION,SUM_LABELS)
+       
        cat("Accuracy: ", confusion_matrix$overall[1], "Time:",TIME/1000,"\n")
       
       
@@ -183,4 +183,7 @@
       displacement <- KFIT
       remaining_points <- remaining_points - (BUFFER_SIZE + KFIT)
       HISTORY <- cbind(HISTORY,list(matrix = confusion_matrix))
-    }
+      SUM_HISTORY <- cbind(SUM_HISTORY,list(matrix = sum_confusion_matrix))
+      
+      
+  }
