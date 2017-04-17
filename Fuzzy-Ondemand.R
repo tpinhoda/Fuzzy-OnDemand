@@ -1,19 +1,19 @@
 
   #----------------------------------------------Variáveis de inicializacao do algoritmo-----------------------------------------------------------------------------------------
-  INITNUMBER <- 400            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
-  MICROCLUSTER_RATIO <- 5      #Quantidade de micro-grupos máxima por classe na criacao inicial
+  INITNUMBER <- 100            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
+  MICROCLUSTER_RATIO <- 6      #Quantidade de micro-grupos máxima por classe na criacao inicial
   FRAME_MAX_CAPACITY <- 16      #Quantidade de snapshost por frame
-  BUFFER_SIZE <- 500          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
+  BUFFER_SIZE <- 100          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
   KFIT <- 40                  #Quantidade de pontos que serão testadas
   T <- 2                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
-  M <- 0.32                    #Porcentagem de ultimos pontos a chegar no micro-grupo
+  M <- 0.25                    #Porcentagem de ultimos pontos a chegar no micro-grupo
   POINTS_PER_UNIT_TIME <- 40   #Pontos que chegarao a cada 1 unidade de tempo
   
-  PHI <- 512*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
+  PHI <- 12*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
   P <- 1                       #Quantidade de horizontes para a classificacão
   STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
   FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.6            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  FUZZY_THETA <- 0.5            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -176,7 +176,7 @@
        confusion_matrix <- confusionMatrix(prediction,labels_test)
        sum_confusion_matrix <- confusionMatrix(SUM_PREDICTION,SUM_LABELS)
        
-       cat("Accuracy: ", confusion_matrix$overall[1], "Time:",TIME/1000,"\n")
+       cat("Accuracy: ", sum_confusion_matrix$overall[1], "Time:",TIME/1000,"\n")
       
       
       #Pega os BUFFER_SIZE+displacement pontos do fluxo de treino para deixa-los no mesmo tempo
