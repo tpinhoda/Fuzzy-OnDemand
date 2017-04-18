@@ -174,7 +174,7 @@ merge.microclusters <- function(min_relevant,point,class){
     point_distances <- get.distances(MICROCLUSTERS,min_relevant_center)
     point_class_distance <- point_distances[class_microclusters]
     point_memberships <- calculate.membership(point_distances[class_microclusters],length(point_class_distance))
-    thresholded_memberships <- point_memberships > 0.1
+    thresholded_memberships <- point_memberships > 0.4
     nearest_index <- class_microclusters[thresholded_memberships]
     #cat("min_class: ",min_relevant_class,"\n")
     for(index in nearest_index ){
@@ -230,7 +230,7 @@ store.snapshot <- function(MICROCLUSTERS, TIME){
 
 get.centersclass <- function(MICROCLUSTERS){
   return(t(sapply(MICROCLUSTERS, function(microcluster){
-    c(as.numeric(microcluster$CF1x/microcluster$n),microcluster$class_id)
+    c(as.numeric(microcluster$CF1x/microcluster$M),microcluster$class_id)
   })))
 }
 
@@ -252,18 +252,22 @@ find.snapshot <- function(t){
 
 relating.microcluster <- function(time,horizon) {
   mc1 <- find.snapshot(time)
+  if(it == 7)
+    a <<- mc1
   mc2 <- find.snapshot(time-horizon)
   idmc1 <- 1
   while(idmc1 < length(mc1)){
     idmc2 <- 1
     while(idmc2 < length(mc2)){
       if(length(setdiff(mc1[[idmc1]]$id,mc2[[idmc2]]$id))<length(mc1[[idmc1]]$id)){
+     
         mc1[[idmc1]]$CF1x <- mc1[[idmc1]]$CF1x - mc2[[idmc2]]$CF1x
         mc1[[idmc1]]$CF2x <- mc1[[idmc1]]$CF2x - mc2[[idmc2]]$CF2x
         mc1[[idmc1]]$CF1t <- mc1[[idmc1]]$CF1t - mc2[[idmc2]]$CF1t
         mc1[[idmc1]]$CF2t <- mc1[[idmc1]]$CF2t - mc2[[idmc2]]$CF2t
         mc1[[idmc1]]$n <- mc1[[idmc1]]$n - mc2[[idmc2]]$n
-        mc1[[idmc1]]$CF1t <- setdiff(mc1[[idmc1]]$id,mc2[[idmc2]]$id)
+        mc1[[idmc1]]$M <- mc1[[idmc1]]$M - mc2[[idmc2]]$M
+        mc1[[idmc1]]$id <- setdiff(mc1[[idmc1]]$id,mc2[[idmc2]]$id)
       }  
       idmc2 <- idmc2 + 1
     }
@@ -287,8 +291,11 @@ calculate.accuracy <- function(y_pred,label){
 }
 
 get.besthorizons <- function(HORIZONS_FITTING,P){
+  count_class <- sapply(HORIZONS_FITTING,function(horizon){length(names(table(horizon$labels)))})
+  most_class <- count_class == max(count_class)
+  print(count_class[most_class])
   accuracy <- sapply(HORIZONS_FITTING,function(horizon){horizon$accuracy})
-  best_accuracy <- order(accuracy,decreasing = T)[1:P]
+  best_accuracy <- order(accuracy[most_class],decreasing = T)[1:P]
   best_horizons <- c()
   for(index in best_accuracy){
     best_horizons <- c(best_horizons,list(HORIZONS_FITTING[[index]]))

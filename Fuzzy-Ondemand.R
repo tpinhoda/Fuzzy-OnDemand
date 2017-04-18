@@ -1,19 +1,19 @@
 
   #----------------------------------------------Variáveis de inicializacao do algoritmo-----------------------------------------------------------------------------------------
   INITNUMBER <- 100            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
-  MICROCLUSTER_RATIO <- 6      #Quantidade de micro-grupos máxima por classe na criacao inicial
+  MICROCLUSTER_RATIO <- 5      #Quantidade de micro-grupos máxima por classe na criacao inicial
   FRAME_MAX_CAPACITY <- 16      #Quantidade de snapshost por frame
   BUFFER_SIZE <- 100          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
   KFIT <- 40                  #Quantidade de pontos que serão testadas
   T <- 2                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
-  M <- 0.25                    #Porcentagem de ultimos pontos a chegar no micro-grupo
+  M <- 0.70                    #Porcentagem de ultimos pontos a chegar no micro-grupo
   POINTS_PER_UNIT_TIME <- 40   #Pontos que chegarao a cada 1 unidade de tempo
   
-  PHI <- 12*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
+  PHI <- 50*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
   P <- 1                       #Quantidade de horizontes para a classificacão
   STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
   FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.5            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  FUZZY_THETA <- 0.65            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -21,12 +21,14 @@
   MC_ID <- 0                                    #Contador de id dos micro-grupos
   TIME <- 0                                     #Contador de tempo em unit * 1000
   HORIZONS <- 2^(1:FRAME_MAX_CAPACITY)*1000              #Horizontes para verificar os kfit pontos
+  HORIZONS <- c(c(250,500,1000),HORIZONS)
   HISTORY <- c()  
   SUM_HISTORY <- c()
   SUM_PREDICTION <- c()
   SUM_LABELS <- c()
   TRAINING_HISTORY <- c()
-
+  HISTORY_MICS <- c()
+  HISTORY_HORIZON  <- c()
   #------------------------------------------------------Inicializa funcões--------------------------------------------------------------------------------------------
   source("Utils-Fuzzy.R")
   
@@ -128,8 +130,10 @@
       knn_testset <- kfit_points[,-(NATTRIBUTES+1)]
       knn_labelstest <- kfit_points[,(NATTRIBUTES+1)]
       HORIZONS_FITTING <- c()
+      old_accuracy <- 0
       for(h in HORIZONS){
         horizon_microluster <- relating.microcluster(TIME,h)
+        
         knn_trainingset <-as.data.frame(get.centers(horizon_microluster))
         
         knn_trainingset[knn_trainingset == 0] <- NA
@@ -143,9 +147,13 @@
         y_pred <- knn(knn_trainingset,knn_testset,classes,k=1)
         accuracy_kfit <- calculate.accuracy(y_pred,knn_labelstest)
         HORIZONS_FITTING <- c(HORIZONS_FITTING,list(list(training_set = knn_trainingset, accuracy = accuracy_kfit, labels = classes)))
-        
+        if(accuracy_kfit > old_accuracy){
+          old_accuracy <- accuracy_kfit
+          best <- horizon_microluster
+        }
       }
       
+      HISTORY_HORIZON <- c(HISTORY_HORIZON,list(best))
       #Fase de teste
       best_horizons <- get.besthorizons(HORIZONS_FITTING,P)
       test_points <- get_points(TEST_STREAM, n=BUFFER_SIZE+displacement,class = TRUE)

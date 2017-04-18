@@ -1,5 +1,5 @@
 rm(list = ls())
-setwd("~/Data\ Mining/Data\ Stream/Classification/Fuzzy-OnDemand/")
+setwd("~/Data\ Stream/Classifiers/Tiago/Fuzzy-OnDemand/")
 library(stream)
 library(class)
 library(ggplot2)
@@ -35,20 +35,20 @@ for(teste in 1:MAX_TEST){
 
 
 
-pdf("teste.pdf")
+pdf("Fuzzy_Buffers.pdf")
 
 TRAINING_INDEX <- INITNUMBER
 for(chunk in 1:length(HISTORY)){
   end_buffer <- TRAINING_INDEX + BUFFER_SIZE + KFIT
   
   mic <- cbind(TRAINING_HISTORY[[chunk]]$training_set,class_mic =TRAINING_HISTORY[[chunk]]$labels)
-  test_points <- TEST_DATASET[TRAINING_INDEX:end_buffer,]
+  test_points <- TRAINING_DATASET[TRAINING_INDEX:end_buffer,]
   test_points$class <- as.factor(test_points$class)
   
-  mic_point <- geom_point(data = mic, aes(x = V1 , y = V2),color = mic$class_mic, shape = 10, size=30)
+  mic_point <- geom_point(data = mic, aes(x = V1 , y = V2),color = mic$class_mic, shape = 10, size=10)
   point <- geom_point(aes(x=X1,y=X2,color=class,shape=1), color = test_points$class,shape = 20)
   theme <- theme(panel.background = element_rect(fill = "white", colour = "grey50"),plot.title = element_text(hjust = 0.5))
-  title_name <- paste0("Buffer")
+  title_name <- paste("Buffer",chunk)
   title <- ggtitle(title_name)
  
   print(ggplot(test_points)+point+mic_point+title+theme)
@@ -60,10 +60,11 @@ dev.off()
 
 
 
-PARAMETERS = c(EXEC = MAX_TEST, DATASET = "BG_10k",INITNUMBER = INITNUMBER, MICROCLUSTER_RATIO = MICROCLUSTER_RATIO, FRAME_MAX_CAPACITY = FRAME_MAX_CAPACITY, BUFFER_SIZE = BUFFER_SIZE, KFIT = KFIT, M = M, POINTS_PER_UNIT_TIME = POINTS_PER_UNIT_TIME, PHI = PHI, P = P, STORE_MC = STORE_MC, FUZZY_M = FUZZY_M, FUZZY_THETA = FUZZY_THETA )
+PARAMETERS = c(EXEC = MAX_TEST, DATASET = "Bench2_1k",INITNUMBER = INITNUMBER, MICROCLUSTER_RATIO = MICROCLUSTER_RATIO, FRAME_MAX_CAPACITY = FRAME_MAX_CAPACITY, BUFFER_SIZE = BUFFER_SIZE, KFIT = KFIT, M = M, POINTS_PER_UNIT_TIME = POINTS_PER_UNIT_TIME, PHI = PHI, P = P, STORE_MC = STORE_MC, FUZZY_M = FUZZY_M, FUZZY_THETA = FUZZY_THETA )
 source("results_evaluate.R")
 #Avaliar resultados
 EVALUATED_RESULTS <- results.evaluate(SUM_RESULTS_HISTORY)
+dir.create("Results.Data",showWarnings = FALSE)
 #Salvar resultados
 saveRDS(PARAMETERS, "Results.Data/parameters.rds")
 saveRDS(EVALUATED_RESULTS,  "Results.Data/results.rds")
