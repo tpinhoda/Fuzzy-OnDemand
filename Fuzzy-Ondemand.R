@@ -6,14 +6,14 @@
   BUFFER_SIZE <- 100          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
   KFIT <- 40                  #Quantidade de pontos que serão testadas
   T <- 2                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
-  M <- 0.70                    #Porcentagem de ultimos pontos a chegar no micro-grupo
+  M <- 0.25                    #Porcentagem de ultimos pontos a chegar no micro-grupo
   POINTS_PER_UNIT_TIME <- 40   #Pontos que chegarao a cada 1 unidade de tempo
   
-  PHI <- 50*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
+  PHI <- 10*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
   P <- 1                       #Quantidade de horizontes para a classificacão
   STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
   FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.65            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  FUZZY_THETA <- 0.3            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)

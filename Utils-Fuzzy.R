@@ -92,7 +92,7 @@ nearest.microcluster <- function(MICROCLUSTERS,point,class){
   point_distances <- get.distances(MICROCLUSTERS,point)
   point_memberships <- calculate.membership(point_distances,MICROCLUSTERS_SIZE)
 
-  thresholded_memberships <- point_memberships > 0.4
+  thresholded_memberships <- point_memberships > 0.1
 
   index_mics <- 1:MICROCLUSTERS_SIZE
   nearest_index <- index_mics[thresholded_memberships]
@@ -156,11 +156,14 @@ sum.microclusters <- function(mc1,mc2){
   MICROCLUSTERS[[mc1]]$n <<-  MICROCLUSTERS[[mc1]]$n + MICROCLUSTERS[[mc2]]$n
   MICROCLUSTERS[[mc1]]$id <<- c(MICROCLUSTERS[[mc1]]$id,MICROCLUSTERS[[mc2]]$id )
   
-  if(MICROCLUSTERS[[mc2]]$CF1t > MICROCLUSTERS[[mc1]]$CF1t)
-    MICROCLUSTERS[[mc1]]$CF1t <- MICROCLUSTERS[[mc2]]$CF1t
-  if(MICROCLUSTERS[[mc2]]$CF2t > MICROCLUSTERS[[mc1]]$CF2t)
-    MICROCLUSTERS[[mc1]]$CF2t <- MICROCLUSTERS[[mc2]]$CF2t
-  
+  MICROCLUSTERS[[mc1]]$CF1t <<-  MICROCLUSTERS[[mc1]]$CF1t + MICROCLUSTERS[[mc2]]$CF1t
+  MICROCLUSTERS[[mc1]]$CF2t <<-  MICROCLUSTERS[[mc1]]$CF2t + MICROCLUSTERS[[mc2]]$CF2t  
+
+  # if(MICROCLUSTERS[[mc2]]$CF1t > MICROCLUSTERS[[mc1]]$CF1t)
+  #   MICROCLUSTERS[[mc1]]$CF1t <- MICROCLUSTERS[[mc2]]$CF1t
+  # if(MICROCLUSTERS[[mc2]]$CF2t > MICROCLUSTERS[[mc1]]$CF2t)
+  #   MICROCLUSTERS[[mc1]]$CF2t <- MICROCLUSTERS[[mc2]]$CF2t
+  # 
 }
 
 merge.microclusters <- function(min_relevant,point,class){
@@ -174,7 +177,7 @@ merge.microclusters <- function(min_relevant,point,class){
     point_distances <- get.distances(MICROCLUSTERS,min_relevant_center)
     point_class_distance <- point_distances[class_microclusters]
     point_memberships <- calculate.membership(point_distances[class_microclusters],length(point_class_distance))
-    thresholded_memberships <- point_memberships > 0.4
+    thresholded_memberships <- point_memberships > FUZZY_THETA
     nearest_index <- class_microclusters[thresholded_memberships]
     #cat("min_class: ",min_relevant_class,"\n")
     for(index in nearest_index ){

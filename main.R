@@ -5,15 +5,15 @@ library(class)
 library(ggplot2)
 library (caret)
 
-MAX_TEST <- 10         #Quantidade max de TESTES do algoritmo
+MAX_TEST <- 1         #Quantidade max de TESTES do algoritmo
 RESULTS_HISTORY <- c()
 SUM_RESULTS_HISTORY <- c()
 
 
 #------------------------------------------------------Variáveis do Dataset--------------------------------------------------------------------------------------
 #Separa o Conjunto de teste e o de treino 1 por 1
-TRAINING_DATASET = read.csv("DS_Datasets/Synthetic/Non-Stationary/Bench2_10k/Benchmark2_10000.csv")[c(TRUE, FALSE), ]
-TEST_DATASET = read.csv("DS_Datasets/Synthetic/Non-Stationary/Bench2_10k/Benchmark2_10000.csv")[c(FALSE, TRUE), ]
+TRAINING_DATASET = read.csv("DS_Datasets/Synthetic/Stationary/BG_10k/BarsGaussAN0_10000.csv")[c(TRUE, FALSE), ]
+TEST_DATASET = read.csv("DS_Datasets/Synthetic/Stationary/BG_10k/BarsGaussAN0_10000.csv")[c(FALSE, TRUE), ]
 
 
 
@@ -46,7 +46,7 @@ for(chunk in 1:length(HISTORY)){
   test_points$class <- as.factor(test_points$class)
   
   mic_point <- geom_point(data = mic, aes(x = V1 , y = V2),color = mic$class_mic, shape = 10, size=10)
-  point <- geom_point(aes(x=X1,y=X2,color=class,shape=1), color = test_points$class,shape = 20)
+  point <- geom_point(aes(x=x,y=y,color=class,shape=1), color = test_points$class,shape = 20)
   theme <- theme(panel.background = element_rect(fill = "white", colour = "grey50"),plot.title = element_text(hjust = 0.5))
   title_name <- paste("Buffer",chunk)
   title <- ggtitle(title_name)
