@@ -13,7 +13,7 @@
   P <- 1                       #Quantidade de horizontes para a classificacão
   STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
   FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.5            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  FUZZY_THETA <- 0.3            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
