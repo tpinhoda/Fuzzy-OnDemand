@@ -92,11 +92,10 @@ nearest.microcluster <- function(MICROCLUSTERS,point,class){
   point_distances <- get.distances(MICROCLUSTERS,point)
   point_memberships <- calculate.membership(point_distances,MICROCLUSTERS_SIZE)
 
-  thresholded_memberships <- point_memberships > 0.1
+  thresholded_memberships <- point_memberships[class_microclusters] > 0.1
 
-  index_mics <- 1:MICROCLUSTERS_SIZE
-  nearest_index <- index_mics[thresholded_memberships]
-  nearest_dist <-  point_memberships[thresholded_memberships]
+  nearest_index <- class_microclusters[thresholded_memberships]
+  nearest_dist <-  point_memberships[class_microclusters[thresholded_memberships]]
   nearests <- cbind(index = nearest_index,membership = nearest_dist)
   return(nearests)
 }
@@ -121,12 +120,26 @@ find.min.relevant <- function(MICROCLUSTERS){
 }
 
 
+find.min.relevant.by.class <- function(MICROCLUSTERS,class){
+  mean_timestamps <<- sapply(MICROCLUSTERS,function(microcluster){if(microcluster$class_id == class){
+                                                                  mean.timestamp(microcluster)
+                                                                }else{
+                                                                  Inf
+                                                                }})
+  min_relevance <- min(mean_timestamps)
+  min_relevant_index <- which.min(mean_timestamps)
+  return(c(index = min_relevant_index, relevance = min_relevance))
+}
+
+
 check.relevance <- function(min._relevant, point_stream, class){
-  if(min_relevant['relevance'] < PHI)
-    delete.microcluster(min_relevant['index'], point_stream,class)
-  else{
-    merge.microclusters(min_relevant,point_stream,class)
-    delete.microcluster(min_relevant['index'],point_stream,class)
+  if(length(MICROCLUSTERS) < MAX_MICS){
+   mic <- create.microcluster(point_stream,class)
+   MICROCLUSTERS <<- c(MICROCLUSTERS,list(mic))
+   can_merge <<- c(can_merge,1)
+  }else{
+      delete.microcluster(min_relevant['index'], point_stream,class)
+      can_merge[min_relevant['index']] <<- 1
   }  
 }
 
@@ -139,6 +152,7 @@ delete.microcluster <- function(microcluster_index,point,class){
   MICROCLUSTERS[[microcluster_index]]$n <<-  1
   MICROCLUSTERS[[microcluster_index]]$class_id <<- class
   MC_ID <<- MC_ID + 1
+  #cat("deleted ", MICROCLUSTERS[[microcluster_index]]$id,"\n")
   MICROCLUSTERS[[microcluster_index]]$id <<- MC_ID
   MICROCLUSTERS[[microcluster_index]]$M <<- 1
   
@@ -156,37 +170,44 @@ sum.microclusters <- function(mc1,mc2){
   MICROCLUSTERS[[mc1]]$n <<-  MICROCLUSTERS[[mc1]]$n + MICROCLUSTERS[[mc2]]$n
   MICROCLUSTERS[[mc1]]$id <<- c(MICROCLUSTERS[[mc1]]$id,MICROCLUSTERS[[mc2]]$id )
   
-  MICROCLUSTERS[[mc1]]$CF1t <<-  MICROCLUSTERS[[mc1]]$CF1t + MICROCLUSTERS[[mc2]]$CF1t
-  MICROCLUSTERS[[mc1]]$CF2t <<-  MICROCLUSTERS[[mc1]]$CF2t + MICROCLUSTERS[[mc2]]$CF2t  
+  # MICROCLUSTERS[[mc1]]$CF1t <<-  MICROCLUSTERS[[mc1]]$CF1t + MICROCLUSTERS[[mc2]]$CF1t
+  # MICROCLUSTERS[[mc1]]$CF2t <<-  MICROCLUSTERS[[mc1]]$CF2t + MICROCLUSTERS[[mc2]]$CF2t  
 
-  # if(MICROCLUSTERS[[mc2]]$CF1t > MICROCLUSTERS[[mc1]]$CF1t)
-  #   MICROCLUSTERS[[mc1]]$CF1t <- MICROCLUSTERS[[mc2]]$CF1t
-  # if(MICROCLUSTERS[[mc2]]$CF2t > MICROCLUSTERS[[mc1]]$CF2t)
-  #   MICROCLUSTERS[[mc1]]$CF2t <- MICROCLUSTERS[[mc2]]$CF2t
-  # 
+  if(MICROCLUSTERS[[mc2]]$CF1t > MICROCLUSTERS[[mc1]]$CF1t)
+    MICROCLUSTERS[[mc1]]$CF1t <- MICROCLUSTERS[[mc2]]$CF1t
+  if(MICROCLUSTERS[[mc2]]$CF2t > MICROCLUSTERS[[mc1]]$CF2t)
+    MICROCLUSTERS[[mc1]]$CF2t <- MICROCLUSTERS[[mc2]]$CF2t
+
 }
 
-merge.microclusters <- function(min_relevant,point,class){
-  min_relevant_mic <- MICROCLUSTERS[[min_relevant['index']]]
-  min_relevant_class <- min_relevant_mic$class_id
-  min_relevant_center <- min_relevant_mic$CF1x/min_relevant_mic$M
-  class_microclusters <- find.microclusters(MICROCLUSTERS,min_relevant_class)
-  if(is.empty(class_microclusters))
-    delete.microcluster(min_relevant,point,class)
-  else{
-    point_distances <- get.distances(MICROCLUSTERS,min_relevant_center)
+merge.microclusters <- function(mic,index_mic){
+  
+  class <- mic$class_id
+  center <- mic$CF1x/mic$M
+  class_microclusters <- find.microclusters(MICROCLUSTERS,class)
+  
+  if(!is.empty(class_microclusters)){
+    point_distances <- get.distances(MICROCLUSTERS,center)
     point_class_distance <- point_distances[class_microclusters]
+    
     point_memberships <- calculate.membership(point_distances[class_microclusters],length(point_class_distance))
     thresholded_memberships <- point_memberships > FUZZY_THETA
     nearest_index <- class_microclusters[thresholded_memberships]
     #cat("min_class: ",min_relevant_class,"\n")
     for(index in nearest_index ){
-     # cat("nearest_class: ",MICROCLUSTERS[[index]]$class_id,"\n")
-      sum.microclusters(index,min_relevant['index'])
+      if(can_merge[index]){
+        if(MICROCLUSTERS[[index]]$class_id !=  MICROCLUSTERS[[index_mic]]$class_id){
+          cat("de ruim mesmo no merge \n")
+          cat(" id: ",MICROCLUSTERS[[index]]$class_id," id: ",MICROCLUSTERS[[index_mic]]$class_id,"\n")
+          Sys.sleep(10000)
+        }
+        sum.microclusters(index,index_mic)
+        can_merge[index] <<- 0  
+      }  
     }
-    delete.microcluster(min_relevant["index"],point,class)
+    can_merge <<- can_merge[-index_mic]
+    MICROCLUSTERS <<- MICROCLUSTERS[-index_mic]
   }
-  
 }
 
 get.maxboundary <- function(MICROCLUSTERS,mic_index){
@@ -200,8 +221,8 @@ get.maxboundary <- function(MICROCLUSTERS,mic_index){
 add.point <- function(microcluster,point){
   microcluster_index <- microcluster[1]
   microcluster_membership <- microcluster[2]
-  MICROCLUSTERS[[microcluster_index]]$CF1x <<- MICROCLUSTERS[[microcluster_index]]$CF1x + point*microcluster_membership
-  MICROCLUSTERS[[microcluster_index]]$CF2x <<- MICROCLUSTERS[[microcluster_index]]$CF2x + (point^2)*microcluster_membership
+  MICROCLUSTERS[[microcluster_index]]$CF1x <<- MICROCLUSTERS[[microcluster_index]]$CF1x + (point*microcluster_membership)
+  MICROCLUSTERS[[microcluster_index]]$CF2x <<- MICROCLUSTERS[[microcluster_index]]$CF2x + ((point^2)*microcluster_membership)
   MICROCLUSTERS[[microcluster_index]]$CF1t <<- MICROCLUSTERS[[microcluster_index]]$CF1t + TIME
   MICROCLUSTERS[[microcluster_index]]$CF2t <<- MICROCLUSTERS[[microcluster_index]]$CF2t + TIME^2
   MICROCLUSTERS[[microcluster_index]]$n <<- MICROCLUSTERS[[microcluster_index]]$n + 1
@@ -220,7 +241,7 @@ mod<-function(x,m){
 store.snapshot <- function(MICROCLUSTERS, TIME){
   for(frame_number in FRAMES){
     frame_index <- frame_number + 1
-    if((TIME%%2^frame_number==0) & (TIME%%2^(frame_number+1)>0))  {
+    if((TIME%%(2^frame_number)==0) & (TIME%%(2^(frame_number+1))>0))  {
       if(as.numeric(length(SNAPSHOTS[[frame_index]]$frame_slot)) < FRAME_MAX_CAPACITY){
         SNAPSHOTS[[frame_index]]$frame_slot <<- c(SNAPSHOTS[[frame_index]]$frame_slot,list(list(MICROCLUSTERS = MICROCLUSTERS, time = TIME)))
       }else{
@@ -242,8 +263,9 @@ find.snapshot <- function(t){
   while(t >= 0){
     for(fr in FRAMES+1){
       snaps <- 1
-      while(snaps < length(SNAPSHOTS[[fr]]$frame_slot)){
+      while(snaps <= length(SNAPSHOTS[[fr]]$frame_slot)){
         if(SNAPSHOTS[[fr]]$frame_slot[[snaps]]$time == t){
+          #cat("time :", SNAPSHOTS[[fr]]$frame_slot[[snaps]]$time,"\n" )
           return(SNAPSHOTS[[fr]]$frame_slot[[snaps]]$MICROCLUSTERS)
         }
         snaps <- snaps + 1
@@ -254,23 +276,52 @@ find.snapshot <- function(t){
 }
 
 relating.microcluster <- function(time,horizon) {
+#  cat("==========================horizon======================\n")
+#  cat("TIME: ",time,"h: ",horizon)
   mc1 <- find.snapshot(time)
-  if(it == 7)
-    a <<- mc1
   mc2 <- find.snapshot(time-horizon)
   idmc1 <- 1
+  
   while(idmc1 < length(mc1)){
     idmc2 <- 1
-    while(idmc2 < length(mc2)){
-      if(length(setdiff(mc1[[idmc1]]$id,mc2[[idmc2]]$id))<length(mc1[[idmc1]]$id)){
-     
+    
+    str_id1 <<- paste(" ",mc1[[idmc1]]$id," ", collapse = " ")
+    while(idmc2 < length(mc2)&length(mc1[[idmc1]]$id)>0){
+      # relating <- TRUE
+      # for(index in mc2[[idmc2]]$id){
+      #   if(!index %in% mc1[[idmc1]]$id){
+      #     relating <- FALSE
+      #   }
+      #   aux <- aux[-match(index,aux)]
+      # }
+      str_id2 <<- paste(" ",mc2[[idmc2]]$id," ", collapse = " ")  
+      if(!is.empty(grep(str_id2,str_id1))){
+        #cat("str1:",str_id1,"str2",str_id2,"\n")
+         if(mc1[[idmc1]]$class_id !=  mc2[[idmc2]]$class_id){
+           cat("de ruim mesmo \n")
+           cat(" id: ",mc1[[idmc1]]$id," id: ",mc2[[idmc2]]$id,"\n")
+           cat("diff: ",mc1[mc1[[idmc1]]$id %nin% mc2[[idmc2]]$id],"\n")
+           Sys.sleep(10000)
+         }
+         
+        #cat("idmc1 : ",idmc1, "idmc2: ",idmc2,"\n")
+        #cat(" id: ",mc1[[idmc1]]$id," id: ",mc2[[idmc2]]$id,"\n")
+        
         mc1[[idmc1]]$CF1x <- mc1[[idmc1]]$CF1x - mc2[[idmc2]]$CF1x
         mc1[[idmc1]]$CF2x <- mc1[[idmc1]]$CF2x - mc2[[idmc2]]$CF2x
         mc1[[idmc1]]$CF1t <- mc1[[idmc1]]$CF1t - mc2[[idmc2]]$CF1t
         mc1[[idmc1]]$CF2t <- mc1[[idmc1]]$CF2t - mc2[[idmc2]]$CF2t
         mc1[[idmc1]]$n <- mc1[[idmc1]]$n - mc2[[idmc2]]$n
         mc1[[idmc1]]$M <- mc1[[idmc1]]$M - mc2[[idmc2]]$M
-        mc1[[idmc1]]$id <- setdiff(mc1[[idmc1]]$id,mc2[[idmc2]]$id)
+        mc1[[idmc1]]$id <-as.numeric(strsplit(gsub(str_id2,"",str_id1)," ")[[1]])
+        mc1[[idmc1]]$id <- mc1[[idmc1]]$id[complete.cases(mc1[[idmc1]]$id)]
+        str_id1 <<- paste(" ",mc1[[idmc1]]$id," ", collapse = " ")
+         #  if(length(mc1[[idmc1]]$id)> 0){
+         #    
+         #    cat("diff: ",mc1[[idmc1]]$id,"\n")
+         # #   Sys.sleep(10)
+         #  }
+        # 
       }  
       idmc2 <- idmc2 + 1
     }

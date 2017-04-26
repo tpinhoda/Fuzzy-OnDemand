@@ -2,18 +2,18 @@
   #----------------------------------------------Variáveis de inicializacao do algoritmo-----------------------------------------------------------------------------------------
   INITNUMBER <- 100            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
   MICROCLUSTER_RATIO <- 5      #Quantidade de micro-grupos máxima por classe na criacao inicial
-  FRAME_MAX_CAPACITY <- 16      #Quantidade de snapshost por frame
+  FRAME_MAX_CAPACITY <- 7      #Quantidade de snapshost por frame
   BUFFER_SIZE <- 100          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
   KFIT <- 40                  #Quantidade de pontos que serão testadas
   T <- 2                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
-  M <- 0.25                    #Porcentagem de ultimos pontos a chegar no micro-grupo
+  M <- 1                    #Porcentagem de ultimos pontos a chegar no micro-grupo
   POINTS_PER_UNIT_TIME <- 40   #Pontos que chegarao a cada 1 unidade de tempo
   
-  PHI <- 10*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
+  PHI <- 50*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
   P <- 1                       #Quantidade de horizontes para a classificacão
   STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
   FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.3            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  FUZZY_THETA <- 0.5            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -29,6 +29,10 @@
   TRAINING_HISTORY <- c()
   HISTORY_MICS <- c()
   HISTORY_HORIZON  <- c()
+  miss_history <- c()
+  MAX_MICS <- n_class*MICROCLUSTER_RATIO
+  MIN_MICS <- n_class*2
+  '%nin%' <- Negate('%in%')
   #------------------------------------------------------Inicializa funcões--------------------------------------------------------------------------------------------
   source("Utils-Fuzzy.R")
   
@@ -83,6 +87,7 @@
   while(remaining_points >= BUFFER_SIZE+KFIT){
       it <- it + 1
       cat("Buffer: ", it ,"\n")
+      can_merge <- rep(1,length(MICROCLUSTERS))
       remaining_points_buffer <- BUFFER_SIZE
       points_until_store <- STORE_MC*POINTS_PER_UNIT_TIME
       #Processa BUFFER_SIZE pontos do fluxo de treino por STORE_MC*POINTS_PER_UNIT
@@ -100,6 +105,7 @@
           nearest <- nearest.microcluster(MICROCLUSTERS,stream_point,class_stream_point)
           #Calcula o Micro-grupo com menor relevancia caso precise de merge ou delete
           min_relevant <- find.min.relevant(MICROCLUSTERS)
+          class_minrelavant <- find.min.relevant.by.class(MICROCLUSTERS,class_stream_point)
           
           if(is.empty(nearest))
             check.relevance(min_relevant,stream_point,class_stream_point)
@@ -107,16 +113,27 @@
             max_membership <- max(nearest[,2])
             #print(max_membership)
             if(max_membership >= FUZZY_THETA ){
-             
+              
               for(nearest_mic in get.rows(nearest))
                 add.point(nearest_mic,stream_point)
-            }else
-              check.relevance(min_relevant,stream_point,class_stream_point)
+            }else{
+              check.relevance(class_minrelevant,stream_point,class_stream_point)
+            }  
           }
-    
+         #MERGE
+          if(MICROCLUSTERS_SIZE > MIN_MICS){
+              mic_index <- 1
+              while(mic_index <= MICROCLUSTERS_SIZE){
+                if((can_merge[mic_index])&(length(MICROCLUSTERS)>MIN_MICS)){
+                  #print("merge")
+                  merge.microclusters(MICROCLUSTERS[[mic_index]],mic_index)
+                  MICROCLUSTERS_SIZE <- length(MICROCLUSTERS)
+                }else
+                  mic_index <- mic_index + 1
+              }
+          }
+          
         }
-      
-        #plot mic estado
         
         #salvar snapshot
         TIME <- TIME + (STORE_MC*1000)
@@ -124,7 +141,7 @@
         store.snapshot(MICROCLUSTERS,TIME)
       }
       
-      
+      print(length(MICROCLUSTERS))
       #Fitting dos kfit pontos do fluxo de treino
       kfit_points <- get_points(TRAINING_STREAM, n=KFIT, class = TRUE)
       knn_testset <- kfit_points[,-(NATTRIBUTES+1)]
@@ -153,9 +170,14 @@
         }
       }
       
+      
       HISTORY_HORIZON <- c(HISTORY_HORIZON,list(best))
       #Fase de teste
       best_horizons <- get.besthorizons(HORIZONS_FITTING,P)
+      # if(length(names(table(best_horizons[[1]]$labels))) < n_class){
+      #   cat("Pode parar")
+      #   Sys.sleep(1000)
+      # }  
       test_points <- get_points(TEST_STREAM, n=BUFFER_SIZE+displacement,class = TRUE)
       test_set <- test_points[,-(NATTRIBUTES+1)]
       labels_test <- as.character(as.numeric(test_points[,(NATTRIBUTES+1)]))
@@ -166,6 +188,9 @@
         training_set <- horizon$training_set
         training_labels <- horizon$labels
         test_pred <- knn(training_set,test_set,training_labels,k=1)
+        if(length(names(table(training_labels)))<n_class){
+          miss_class <- miss_class + (n_class - length(names(table(training_labels))) )
+        }
         horizons_pred <- cbind(horizons_pred,test_pred)
         TRAINING_HISTORY <- cbind(TRAINING_HISTORY, list(horizon))
       }
@@ -195,3 +220,4 @@
       
       
   }
+  miss_history <- c(miss_history,miss_class)
