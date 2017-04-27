@@ -1,20 +1,27 @@
-rm(list = ls())
-setwd("~/Data\ Stream/Classifiers/Tiago/Fuzzy-OnDemand/")
-library(stream)
-library(class)
-library(ggplot2)
-library (caret)
+# rm(list = ls())
+# setwd("~/Data\ Stream/Classifiers/Tiago/Fuzzy-OnDemand/")
+# library(stream)
+# library(class)
+# library(ggplot2)
+# library (caret)
+# 
+# EXP = read.csv("Experiments/exp_4.csv", row.names = 1)
+MAX_TEST <- EXP["MAX_TEST",1]         #Quantidade max de TESTES do algoritmo
+NAME_EXP <- colnames(EXP)
 
-MAX_TEST <- 1         #Quantidade max de TESTES do algoritmo
 RESULTS_HISTORY <- c()
 SUM_RESULTS_HISTORY <- c()
-miss_class <- 0
+MISS_HISTORY <- NULL
 
 #------------------------------------------------------Variáveis do Dataset--------------------------------------------------------------------------------------
-#Separa o Conjunto de teste e o de treino 1 por 1
-TRAINING_DATASET = read.csv("DS_Datasets/Synthetic/Stationary/BG_10k/BarsGaussAN0_10000.csv")[c(TRUE, FALSE), ]
-TEST_DATASET = read.csv("DS_Datasets/Synthetic/Stationary/BG_10k/BarsGaussAN0_10000.csv")[c(FALSE, TRUE), ]
+#Lendo os caminhos para os DataSets
+ds = as.matrix(read.csv("DataSet_Path.csv"))
+#modificar numero ds referente ao dataset
+DS_NAME = strsplit(strsplit(ds[base],"/")[[1]][5],".csv")[[1]]
 
+#Separa o Conjunto de teste e o de treino 1 por 1
+TRAINING_DATASET = read.csv(ds[base])[c(TRUE, FALSE), ]
+TEST_DATASET = read.csv(ds[base])[c(FALSE, TRUE), ]
 
 
 TRAINING_SET_SIZE <-nrow(TRAINING_DATASET)    #Quantidade de instacias no dataset de treino
@@ -40,13 +47,12 @@ for(teste in 1:MAX_TEST){
   source("Fuzzy-Ondemand.R")
   RESULTS_HISTORY <- cbind(RESULTS_HISTORY,list(teste = HISTORY))
   SUM_RESULTS_HISTORY <- cbind(SUM_RESULTS_HISTORY,list(teste = SUM_HISTORY))
-  MISS <- miss_history
+  MISS_HISTORY <- cbind(MISS_HISTORY,miss_class)
 }
-if(!is.empty(MISS))
-  print(sum(MISS)/length(MISS))
 
-
-pdf("Fuzzy_Buffers.pdf")
+dir <- paste0("Results_Buffers/",DS_NAME)
+dir.create(dir,showWarnings = FALSE)
+pdf(paste(dir,"/Fuzzy_OnDemand_Buffers_",NAME_EXP,".pdf",sep=""))
 
 TRAINING_INDEX <- INITNUMBER
 for(chunk in 1:length(HISTORY)){
@@ -55,7 +61,7 @@ for(chunk in 1:length(HISTORY)){
   mic <- cbind(TRAINING_HISTORY[[chunk]]$training_set,class_mic =TRAINING_HISTORY[[chunk]]$labels)
   test_points <- TRAINING_DATASET[TRAINING_INDEX:end_buffer,]
   mic_point <- geom_point(data = mic, aes(x = V1 , y = V2),color = mic$class_mic, shape = 10, size=10)
-  point <- geom_point(aes(x=X1,y=X2,color=class,shape=1), color = test_points$class,shape = 20)
+  point <- geom_point(aes(x=x,y=y,color=class,shape=1), color = test_points$class,shape = 20)
   theme <- theme(panel.background = element_rect(fill = "white", colour = "grey50"),plot.title = element_text(hjust = 0.5))
   title_name <- paste("Chunk",chunk)
   title <- ggtitle(title_name)
@@ -69,15 +75,17 @@ for(chunk in 1:length(HISTORY)){
 dev.off()
 
 
-
-PARAMETERS = c(EXEC = MAX_TEST, DATASET = "Bench2_1k",INITNUMBER = INITNUMBER, MICROCLUSTER_RATIO = MICROCLUSTER_RATIO, FRAME_MAX_CAPACITY = FRAME_MAX_CAPACITY, BUFFER_SIZE = BUFFER_SIZE, KFIT = KFIT, M = M, POINTS_PER_UNIT_TIME = POINTS_PER_UNIT_TIME, PHI = PHI, P = P, STORE_MC = STORE_MC, FUZZY_M = FUZZY_M, FUZZY_THETA = FUZZY_THETA )
+PARAMETERS = c(EXEC = MAX_TEST, DATASET = DS_NAME ,INITNUMBER = INITNUMBER, MICROCLUSTER_RATIO = MICROCLUSTER_RATIO, FRAME_MAX_CAPACITY = FRAME_MAX_CAPACITY, BUFFER_SIZE = BUFFER_SIZE, KFIT = KFIT, M = M, POINTS_PER_UNIT_TIME = POINTS_PER_UNIT_TIME, PHI = PHI, P = P, STORE_MC = STORE_MC, FUZZY_M = FUZZY_M, FUZZY_THETA = FUZZY_THETA )
 source("results_evaluate.R")
 #Avaliar resultados
 EVALUATED_RESULTS <- results.evaluate(SUM_RESULTS_HISTORY)
-dir.create("Results.Data",showWarnings = FALSE)
+dir <- paste0("Results.Data/",DS_NAME)
+dir.create(dir,showWarnings = FALSE)
 #Salvar resultados
-saveRDS(PARAMETERS, "Results.Data/parameters.rds")
-saveRDS(EVALUATED_RESULTS,  "Results.Data/results.rds")
-saveRDS(SUM_RESULTS_HISTORY,  "Results.Data/sum_results.rds")
+saveRDS(PARAMETERS, paste(dir,"/",NAME_EXP,"_Parameters.rds",sep=""))
+saveRDS(EVALUATED_RESULTS,  paste(dir,"/",NAME_EXP,"_Results.rds",sep=""))
+saveRDS(SUM_RESULTS_HISTORY,  paste(dir,"/",NAME_EXP,"_SumResults.rds",sep=""))
+saveRDS(MISS_HISTORY, paste(dir,"/",NAME_EXP,"_miss_history.rds",sep=""))
+
 
 

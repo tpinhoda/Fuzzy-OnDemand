@@ -96,7 +96,7 @@ results.evaluate <- function(R_H){
     #encontrando CER
     CER = (sum((ExC*FPR)/Ex) + sum((ExC*FNR)/Ex)) / 2
     
-    #Encontrando o desvio padrão do CER (Fazendo separado pq fiz depois)
+    #Encontrando o desvio padrao do CER (Fazendo separado pq fiz depois)
     dcer = vector(length = exec)
     for(i in 1:exec){
       for(t in 1:qtdClass){

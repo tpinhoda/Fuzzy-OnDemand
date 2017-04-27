@@ -1,19 +1,19 @@
 
   #----------------------------------------------Variáveis de inicializacao do algoritmo-----------------------------------------------------------------------------------------
-  INITNUMBER <- 100            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
-  MICROCLUSTER_RATIO <- 5      #Quantidade de micro-grupos máxima por classe na criacao inicial
-  FRAME_MAX_CAPACITY <- 7      #Quantidade de snapshost por frame
-  BUFFER_SIZE <- 100          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
-  KFIT <- 40                  #Quantidade de pontos que serão testadas
-  T <- 2                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
-  M <- 1                    #Porcentagem de ultimos pontos a chegar no micro-grupo
-  POINTS_PER_UNIT_TIME <- 40   #Pontos que chegarao a cada 1 unidade de tempo
+  INITNUMBER <- EXP["INITNUMBER",1]            #Quantidade inicial de pontos que serão utilizados na criacao dos micro-grupos iniciais  
+  MICROCLUSTER_RATIO <- EXP["MICROCLUSTER_RATIO",1]      #Quantidade de micro-grupos máxima por classe na criacao inicial
+  FRAME_MAX_CAPACITY <- EXP["FRAME_MAX_CAPACITY",1]      #Quantidade de snapshost por frame
+  BUFFER_SIZE <- EXP["BUFFER_SIZE",]          #Quantidade de pontos a ser recebida até para q seja feito o teste no fluxo de teste
+  KFIT <- EXP["KFIT",1]                  #Quantidade de pontos que serão testadas
+  T <- EXP["T",1]                       #Multiplica pela distancia do micro-grupo mais proximo para definir o limite maximo do micro-grupo inicial
+  M <- EXP["M_F",1]                    #Porcentagem de ultimos pontos a chegar no micro-grupo
+  POINTS_PER_UNIT_TIME <- EXP["POINTS_PER_UNIT_TIME",1]   #Pontos que chegarao a cada 1 unidade de tempo
   
-  PHI <- 50*1000                #Limiar para decidir se um mcrogrupo é deletado ou merge
-  P <- 1                       #Quantidade de horizontes para a classificacão
-  STORE_MC <- 0.25                #Intervalo de tempo para armazenar um snapshot
-  FUZZY_M <- 2                  #Parametro de fuzzyficação
-  FUZZY_THETA <- 0.3            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
+  PHI <- EXP["PHI",1]                #Limiar para decidir se um mcrogrupo é deletado ou merge
+  P <- EXP["P",1]                       #Quantidade de horizontes para a classificacão
+  STORE_MC <- EXP["STORE_MC",1]                #Intervalo de tempo para armazenar um snapshot
+  FUZZY_M <- EXP["FUZZY_M",1]                  #Parametro de fuzzyficação
+  FUZZY_THETA <- EXP["FUZZY_THETA",1]            #Verifica se cria ou nao um novo micro-grupo baseado nesse threshold de pertinencia
   #-------------------------------------------Variáveis globais inicializadas automaticamente-------------------------------------------------------------------
   FRAME_NUMBER = round(log2(TRAINING_SET_SIZE))      #Quantidade de frames que haverá na tabela geométrica
   FRAMES = 0:(FRAME_NUMBER-1)                    #Lista dos números dos frames ordenada de forma crescente (0 - framenumber-1)
@@ -29,7 +29,7 @@
   TRAINING_HISTORY <- c()
   HISTORY_MICS <- c()
   HISTORY_HORIZON  <- c()
-  miss_history <- c()
+  miss_class <- 0
   MAX_MICS <- n_class*MICROCLUSTER_RATIO
   MIN_MICS <- n_class*2
   '%nin%' <- Negate('%in%')
@@ -220,4 +220,3 @@
       
       
   }
-  miss_history <- c(miss_history,miss_class)
